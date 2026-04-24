@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { randomUUID } from 'crypto';
+import { redactLogContext, redactAnalyticsPayload } from './redaction';
 
 type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 /**
@@ -99,23 +100,27 @@ function createLogEntry(
 }
 
 export function logInfo(req: Request | NextRequest | undefined | string, message: string, context?: Record<string, unknown>): void {
-    const entry = createLogEntry('info', req, message, context);
+    const redactedContext = redactLogContext(context);
+    const entry = createLogEntry('info', req, message, redactedContext);
     console.log(formatEntry(entry));
 }
 
 export function logWarn(req: Request | NextRequest | undefined | string, message: string, context?: Record<string, unknown>): void {
-    const entry = createLogEntry('warn', req, message, context);
+    const redactedContext = redactLogContext(context);
+    const entry = createLogEntry('warn', req, message, redactedContext);
     console.warn(formatEntry(entry));
 }
 
 export function logError(req: Request | NextRequest | undefined | string, message: string, error?: Error, context?: Record<string, unknown>): void {
-    const entry = createLogEntry('error', req, message, context, error);
+    const redactedContext = redactLogContext(context);
+    const entry = createLogEntry('error', req, message, redactedContext, error);
     console.error(formatEntry(entry));
 }
 
 export function logDebug(req: Request | NextRequest | undefined | string, message: string, context?: Record<string, unknown>): void {
     if (process.env.NODE_ENV === 'development') {
-        const entry = createLogEntry('debug', req, message, context);
+        const redactedContext = redactLogContext(context);
+        const entry = createLogEntry('debug', req, message, redactedContext);
         console.debug(formatEntry(entry));
     }
 }
@@ -128,34 +133,38 @@ function emit(event: AnalyticsEvent) {
 }
 
 export function logCommitmentCreated(payload: AnalyticsPayload = {}) {
+    const redactedPayload = redactAnalyticsPayload(payload);
     emit({
         event: 'CommitmentCreated',
         timestamp: new Date().toISOString(),
-        payload
+        payload: redactedPayload
     });
 }
 
 export function logCommitmentSettled(payload: AnalyticsPayload = {}) {
+    const redactedPayload = redactAnalyticsPayload(payload);
     emit({
         event: 'CommitmentSettled',
         timestamp: new Date().toISOString(),
-        payload
+        payload: redactedPayload
     });
 }
 
 export function logEarlyExit(payload: AnalyticsPayload = {}) {
+    const redactedPayload = redactAnalyticsPayload(payload);
     emit({
         event: 'CommitmentEarlyExit',
         timestamp: new Date().toISOString(),
-        payload
+        payload: redactedPayload
     });
 }
 
 export function logAttestation(payload: AnalyticsPayload = {}) {
+    const redactedPayload = redactAnalyticsPayload(payload);
     emit({
         event: 'AttestationReceived',
         timestamp: new Date().toISOString(),
-        payload
+        payload: redactedPayload
     });
 }
 
@@ -169,3 +178,5 @@ export const logger = {
     debug: (message: string, context?: Record<string, unknown>) =>
         logDebug(undefined, message, context),
 };
+
+export { redact, redactLogContext, redactAnalyticsPayload } from './redaction';
